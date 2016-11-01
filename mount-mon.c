@@ -63,18 +63,21 @@ int update_mpd_db(char *song)
 int isin_mpd_db(char *artist, char *title)
 {
     struct mpd_song *song;
-    char searchstr[_MAXSTRING_] = "";
     int cnt = 0;
 
     struct mpd_connection *conn = setup_connection();
 
     if (conn) {
-        sprintf(searchstr, "artist %s title %s", artist, title);
+        //printf("%s: lets search for %s %s\n", __func__, artist, title);
         if(mpd_search_db_songs(conn, false) == false) {
             printf("%s: mpd_search_db_songs failed\n", __func__);
             goto search_done;
-        } else if(mpd_search_add_any_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
-                    searchstr) == false) {
+        } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
+                    0, artist) == false) {
+            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
+            goto search_done;
+        } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
+                    3, title) == false) {
             printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
             goto search_done;
         } else if(mpd_search_commit(conn) == false) {
@@ -105,12 +108,12 @@ void send_to_server(const char *message)
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        printf("ERROR opening socket\n");
+        printf("%s: ERROR opening socket\n", __func__);
         goto done;
     }
     server = gethostbyname(_HOST_);
     if (server == NULL) {
-        printf("ERROR, no such host\n");
+        printf("%s: ERROR, no such host\n", __func__);
         goto done;
     }
     bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -120,12 +123,12 @@ void send_to_server(const char *message)
             server->h_length);
     serv_addr.sin_port = htons(_PORT_);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        printf("ERROR connecting\n");
+        printf("%s: ERROR connecting\n", __func__);
         goto done;
     }
     n = write(sockfd, message, strlen(message));
     if (n < 0)
-        printf("ERROR writing to socket\n");
+        printf("%s: ERROR writing to socket\n", __func__);
 done:
     close(sockfd);
     return;
@@ -219,7 +222,7 @@ int get_mount_entry(char *ment)
 
     aFile = setmntent(_MOUNTS_, "r");
     if (aFile == NULL) {
-        perror("setmntent");
+        printf("%s: setmntent", __func__);
         return -1;
     }
     while (NULL != (ent = getmntent(aFile))) {
@@ -246,7 +249,7 @@ int list(const char *name, const struct stat *status, int type)
     char mpdname[2 * _MAXSTRING_] = "";
     if(type == FTW_F && strcmp(_EXT_, get_filename_ext(name)) == 0) {
         printf("0%3o\t%s\n", status->st_mode&0777, name);
-        printf("%s: found %s\n", __func__, basename((char*)name));
+        //printf("%s: found %s\n", __func__, basename((char*)name));
         
         EXTRACTOR_extract (plugins,
                 name,
