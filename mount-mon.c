@@ -291,7 +291,8 @@ int list(const char *name, const struct stat *status, int type)
             //send new song info to socket
             send_to_server(filename);
         } else {
-            printf("%s: there is no artist tag or title tag\n", __func__);
+            printf("%s: there is no artist tag or title tag: %s/%s/%s\n", 
+                    __func__, artist, title, album);
         }
     }
 
