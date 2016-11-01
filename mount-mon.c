@@ -60,6 +60,43 @@ int update_mpd_db(char *song)
     return -1;
 }
 
+int isin_mpd_db(char *artist, char *title)
+{
+    struct mpd_song *song;
+    char searchstr[_MAXSTRING_] = "";
+    int cnt = 0;
+
+    struct mpd_connection *conn = setup_connection();
+
+    if (conn) {
+        sprintf(searchstr, "artist %s title %s", artist, title);
+        if(mpd_search_db_songs(conn, false) == false) {
+            printf("%s: mpd_search_db_songs failed\n", __func__);
+            goto search_done;
+        } else if(mpd_search_add_any_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
+                    searchstr) == false) {
+            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
+            goto search_done;
+        } else if(mpd_search_commit(conn) == false) {
+            printf("%s: mpd_search_commit failed\n", __func__);
+            goto search_done;
+        } else {
+            while((song = mpd_recv_song(conn)) != NULL) {
+                printf("%s: mpd db found: %s\n", __func__, mpd_song_get_uri(song));
+                mpd_song_free(song);
+                if (cnt++ > 300) {
+                    printf("%s: maximum count reached\n", __func__);
+                    break;
+                }
+            }
+        }
+search_done:
+        mpd_connection_free(conn);
+        return cnt;
+    }
+    return -1;
+}
+
 void send_to_server(const char *message)
 {
     int sockfd, n;
@@ -218,6 +255,11 @@ int list(const char *name, const struct stat *status, int type)
                 NULL);
 
         if (strcmp(artist, "") != 0 && strcmp(title, "") != 0) {
+            if (isin_mpd_db(artist, title)) {
+                //exists already; do nothing
+                //TODO: check bitrate and duration
+                return 0;
+            }
             sprintf(path, "%s/%s", _MUSIC_PATH_, artist);
             mkdir(path, 0777);
             if (strcmp(album, "") != 0) {
