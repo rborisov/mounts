@@ -29,9 +29,9 @@ static struct EXTRACTOR_PluginList *plugins = NULL;
 static EXTRACTOR_MetaDataProcessor processor = NULL;
 static int in_process;
 
-char artist[_MAXSTRING_] = "";
-char title[_MAXSTRING_] = "";
-char album[_MAXSTRING_] = "";
+char artist[_MAXSTRING_];
+char title[_MAXSTRING_];
+char album[_MAXSTRING_];
 
 static struct mpd_connection * setup_connection(void)
 {
@@ -85,7 +85,7 @@ int isin_mpd_db(char *artist, char *title)
             goto search_done;
         } else {
             while((song = mpd_recv_song(conn)) != NULL) {
-                printf("%s: mpd db found: %s\n", __func__, mpd_song_get_uri(song));
+//                printf("%s: mpd db found: %s\n", __func__, mpd_song_get_uri(song));
                 mpd_song_free(song);
                 if (cnt++ > 300) {
                     printf("%s: maximum count reached\n", __func__);
@@ -123,7 +123,7 @@ void send_to_server(const char *message)
             server->h_length);
     serv_addr.sin_port = htons(_PORT_);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        printf("%s: ERROR connecting\n", __func__);
+//        printf("%s: ERROR connecting\n", __func__);
         goto done;
     }
     n = write(sockfd, message, strlen(message));
@@ -248,16 +248,20 @@ int list(const char *name, const struct stat *status, int type)
     char path[2 * _MAXSTRING_] = "";
     char mpdname[2 * _MAXSTRING_] = "";
     if(type == FTW_F && strcmp(_EXT_, get_filename_ext(name)) == 0) {
-        printf("0%3o\t%s\n", status->st_mode&0777, name);
+//        printf("0%3o\t%s\n", status->st_mode&0777, name);
         //printf("%s: found %s\n", __func__, basename((char*)name));
-        
+       
+        memset(artist, 0, sizeof(artist));
+        memset(title, 0, sizeof(title));
+        memset(album, 0, sizeof(album));
+
         EXTRACTOR_extract (plugins,
                 name,
                 NULL, 0,
                 processor,
                 NULL);
 
-        if (strcmp(artist, "") != 0 && strcmp(title, "") != 0) {
+        if (artist[0] != 0 && title[0] != 0) {
             if (isin_mpd_db(artist, title)) {
                 //exists already; do nothing
                 //TODO: check bitrate and duration
@@ -265,7 +269,7 @@ int list(const char *name, const struct stat *status, int type)
             }
             sprintf(path, "%s/%s", _MUSIC_PATH_, artist);
             mkdir(path, 0777);
-            if (strcmp(album, "") != 0) {
+            if (album[0] != 0) {
                 sprintf(path, "%s/%s/%s", _MUSIC_PATH_, artist, album);
                 mkdir(path, 0777);
                 sprintf(mpdname, "%s/%s/%s.%s", artist, album, title, _EXT_);
@@ -283,7 +287,7 @@ int list(const char *name, const struct stat *status, int type)
                 }
             }
             if (0 == file_copy(filename, name))
-                printf("%s: copied to %s\n", __func__, filename);
+                printf("%s: new %s\n", __func__, filename);
             else {
                 printf("%s: file copy error! %s\n", __func__, filename);
                 return 0;
@@ -323,7 +327,7 @@ int main()
     while ((rv = poll(&pfd, 1, 5)) >= 0) {
         if (pfd.revents & POLLERR) {
             cnt1 = get_mount_entry(mentdir);
-            fprintf(stdout, "Mount points changed. Count = %d\n", cnt1);
+//            fprintf(stdout, "Mount points changed. Count = %d\n", cnt1);
             if (cnt1 > cnt) {
                 //we have new mount point
                 printf("%d %d %s\n", cnt, cnt1, mentdir);
@@ -333,6 +337,8 @@ int main()
         }
         pfd.revents = 0;
     }
+
+    printf("%d\n", rv);
 
     close(mfd);
     EXTRACTOR_plugin_remove_all (plugins);
