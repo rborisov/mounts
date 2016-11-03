@@ -21,6 +21,7 @@
 
 #include "config.h"
 #include "mpd-utils.h"
+#include "space-mon.h"
 
 #define dgettext(Domainname, Msgid) ((const char *) (Msgid))
 #define _(a) dgettext("org.gnunet.libextractor", a)
@@ -247,6 +248,8 @@ int main()
     int rv;
     char mentdir[128];
 
+    fs_listener_init();
+
     plugins = EXTRACTOR_plugin_add_defaults (
             in_process ? EXTRACTOR_OPTION_IN_PROCESS : EXTRACTOR_OPTION_DEFAULT_POLICY);
     processor = &print_selected_keywords;
@@ -275,6 +278,8 @@ int main()
 
     close(mfd);
     EXTRACTOR_plugin_remove_all (plugins);
+
+    fs_listener_close();
 
     return 0;
 }

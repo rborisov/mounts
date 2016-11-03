@@ -27,7 +27,6 @@ void memory_init(void *userp)
 {
     struct memstruct *mem = (struct MemoryStruct *)userp;
     mem->memory = malloc(1);
-    albumstr.size = 0;
 }
 
 void memory_clean(void *userp)
