@@ -1,45 +1,14 @@
-#include <pthread.h>
+#include <stdio.h>
 #include <sys/statvfs.h>
 #include <errno.h>
 #include <unistd.h>
+#include "mpd-utils.h"
+#include "db_utils.h"
+#include "memory_utils.h"
+#include "config.h"
 
-
-int mpd_search_and_delete(char *artist, char * title)
-{
-    struct mpd_song *song;
-    int cnt = 0;
-    char uri[128] = "";
-    if (conn) {
-        if(mpd_search_db_songs(conn, false) == false) {
-            goto search_done;
-        } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
-                    0, artist) == false) {
-            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
-            goto search_done;
-        } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
-                    3, title) == false) {
-            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
-            goto search_done;
-        } else if(mpd_search_commit(conn) == false) {
-            printf("%s: mpd_search_commit failed\n", __func__);
-            goto search_done;
-        } else {
-            while((song = mpd_recv_song(conn)) != NULL) {
-                sprintf(uri, "%s/%s", MUSICPATH, mpd_song_get_uri(song));
-                printf("%s: try to remove %s", __func__, uri);
-                if (remove(uri) != 0) {
-                    printf(" - failed\n");
-                } else {
-                    printf(" - done\n");
-                    cnt++;
-                }
-                mpd_song_free(song);
-            }
-        }
-    }
-search_done:
-    return cnt;
-}
+struct memstruct rat_artist;
+struct memstruct rat_title;
 
 int free_disk_space()
 {
@@ -71,19 +40,19 @@ void fs_stat_loop(void)
     unsigned long fs_bavail;
     int id;
     for (;;) {
-        if (statvfs(MUSICPATH, &sv) == -1 ) {
+        if (statvfs(_MUSIC_PATH_, &sv) == -1 ) {
             perror("stat");
         }
         fs_bavail = sv.f_bsize * sv.f_bavail;
         printf("%s: free space: %ld bytes\n", __func__, fs_bavail);
-        if (fs_bavail < FSBYTESAVAIL) {
+        if (fs_bavail < _FS_BYTES_AVAIL_) {
             printf("%s: lets clean fs!\n", __func__);
             free_disk_space();
         }
         sleep(5);
     }
 }
-
+/*
 int fs_listener_init(void)
 {
     if (pthread_create(&fs_listener_thread, NULL,
@@ -97,4 +66,4 @@ int fs_listener_init(void)
 ERROR:
     return -1;
 }
-
+*/

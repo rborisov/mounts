@@ -9,6 +9,7 @@ set(CPACK_PACKAGE_VERSION_PATCH "2")
 find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(LibMPDClient REQUIRED)
+find_package(Sqlite3 REQUIRED)
 find_library(EXTRACTOR_LIBRARIES name extractor paths /usr/lib)
 
 message("${EXTRACTOR_LIBRARIES}")
@@ -28,12 +29,18 @@ set(CMAKE_C_FLAGS_DEBUG "-ggdb -pedantic")
 get_target_property(MKDATA_EXE mkdata LOCATION)
 
 set(SOURCES
+    mpd-utils.c
     mount-mon.c
+    space-mon.c
+    db_utils.c
+    sql.c
+    memory_utils.c
 )
 
 add_executable(moumon ${SOURCES})
 target_link_libraries(moumon ${CMAKE_THREAD_LIBS_INIT}
     ${LIBMPDCLIENT_LIBRARIES}
+    ${SQLITE3_LIBRARIES}
     extractor)
 
 install(TARGETS moumon DESTINATION bin)

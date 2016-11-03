@@ -17,10 +17,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <libgen.h>
-#include <mpd/client.h>
 #include <assert.h>
 
 #include "config.h"
+#include "mpd-utils.h"
 
 #define dgettext(Domainname, Msgid) ((const char *) (Msgid))
 #define _(a) dgettext("org.gnunet.libextractor", a)
@@ -32,73 +32,6 @@ static int in_process;
 char artist[_MAXSTRING_];
 char title[_MAXSTRING_];
 char album[_MAXSTRING_];
-
-static struct mpd_connection * setup_connection(void)
-{
-    struct mpd_connection *conn = mpd_connection_new(NULL, NULL, 0);
-    if (conn == NULL) {
-        printf("%s: Out of memory\n", __func__);
-        return NULL;
-    }
-
-    if (mpd_connection_get_error(conn) != MPD_ERROR_SUCCESS) {
-        printf("%s: mpd connection error: %s\n", __func__, mpd_connection_get_error_message(conn));
-        return NULL;
-    }
-
-    return conn;
-}
-
-int update_mpd_db(char *song)
-{
-    struct mpd_connection *conn = setup_connection();
-    if (conn) {
-        mpd_run_update(conn, song);
-        mpd_connection_free(conn);
-        return 0;
-    }
-    return -1;
-}
-
-int isin_mpd_db(char *artist, char *title)
-{
-    struct mpd_song *song;
-    int cnt = 0;
-
-    struct mpd_connection *conn = setup_connection();
-
-    if (conn) {
-        //printf("%s: lets search for %s %s\n", __func__, artist, title);
-        if(mpd_search_db_songs(conn, false) == false) {
-            printf("%s: mpd_search_db_songs failed\n", __func__);
-            goto search_done;
-        } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
-                    0, artist) == false) {
-            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
-            goto search_done;
-        } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
-                    3, title) == false) {
-            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
-            goto search_done;
-        } else if(mpd_search_commit(conn) == false) {
-            printf("%s: mpd_search_commit failed\n", __func__);
-            goto search_done;
-        } else {
-            while((song = mpd_recv_song(conn)) != NULL) {
-//                printf("%s: mpd db found: %s\n", __func__, mpd_song_get_uri(song));
-                mpd_song_free(song);
-                if (cnt++ > 300) {
-                    printf("%s: maximum count reached\n", __func__);
-                    break;
-                }
-            }
-        }
-search_done:
-        mpd_connection_free(conn);
-        return cnt;
-    }
-    return -1;
-}
 
 void send_to_server(const char *message)
 {
