@@ -17,10 +17,10 @@ int free_disk_space()
 {
     int id, cnt = 0;
     char *artist, *title;
-    if (db_init() != 0) {
+/*    if (db_init() != 0) {
         printf("%s: SQLITE_ERROR\n", __func__);
         return 0;
-    }
+    }*/
     id = db_get_prior_song_by_rating_first();
     while (id) {
         artist = db_get_song_artist(id);
@@ -39,7 +39,7 @@ int free_disk_space()
         id = db_get_song_by_rating_next();
     }
 done:
-    db_close();
+//    db_close();
     return cnt;
 }
 
@@ -72,6 +72,7 @@ int fs_listener_init(void)
         printf("%s: event_thread error\n", __func__);
         return -1;
     }
+    db_init();
     return 0;
 }
 
@@ -79,4 +80,5 @@ void fs_listener_close(void)
 {
     memory_clean((void*)&rat_artist);
     memory_clean((void*)&rat_title);
+    db_close();
 }
