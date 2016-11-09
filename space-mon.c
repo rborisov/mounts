@@ -72,7 +72,10 @@ int fs_listener_init(void)
         printf("%s: event_thread error\n", __func__);
         return -1;
     }
-    db_init();
+    if (db_init() != 0) {
+        printf("%s: SQLITE_ERROR\n", __func__);
+        return -1;
+    }
     return 0;
 }
 
