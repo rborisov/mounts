@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include "config.h"
 #include "mpd-utils.h"
@@ -114,6 +115,21 @@ out_error:
     return -1;
 }
 
+char *trimwhitespace(char *str)
+{
+    char *end;
+    // Trim leading space
+    while(isspace((unsigned char)*str)) str++;
+    if(*str == 0)  // All spaces?
+        return str;
+    // Trim trailing space
+    end = str + strlen(str) - 1;
+    while(end > str && isspace((unsigned char)*end)) end--;
+    // Write new null terminator
+    *(end+1) = 0;
+    return str;
+}
+
 static int print_selected_keywords (void *cls,
         const char *plugin_name,
         enum EXTRACTOR_MetaType type,
@@ -122,7 +138,7 @@ static int print_selected_keywords (void *cls,
         const char *data,
         size_t data_len)
 {
-    char *keyword;
+    char *keyword, *keyw;
     const char *stype;
     const char *mt;
 
@@ -130,7 +146,8 @@ static int print_selected_keywords (void *cls,
     stype = (NULL == mt) ? _("unknown") : gettext(mt);
     switch (format) {
         case EXTRACTOR_METAFORMAT_UTF8:
-            keyword = strdup (data);
+            keyw = strdup(data);
+            keyword = trimwhitespace(keyw);
             if (NULL != keyword) {
                 if (strcmp(stype, "artist") == 0)
                     strcpy(artist, keyword);
@@ -138,7 +155,7 @@ static int print_selected_keywords (void *cls,
                     strcpy(title, keyword);
                 if (strcmp(stype, "album") == 0)
                     strcpy(album, keyword);
-                free (keyword);
+                free (keyw);
             }
             break;
         default:
@@ -232,8 +249,8 @@ int list(const char *name, const struct stat *status, int type)
             //send new song info to socket
             send_to_server(filename);
         } else {
-            printf("%s: there is no artist tag or title tag: %s/%s/%s\n", 
-                    __func__, artist, title, album);
+            printf("%s: %s there is no artist or title tag: %s/%s/%s\n", 
+                    __func__, name, artist, title, album);
         }
     }
 
