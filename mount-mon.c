@@ -155,8 +155,8 @@ static int print_selected_keywords (void *cls,
                     strcpy(title, keyword);
                 if (strcmp(stype, "album") == 0)
                     strcpy(album, keyword);
-                free (keyw);
             }
+            free (keyw);
             break;
         default:
             break;
