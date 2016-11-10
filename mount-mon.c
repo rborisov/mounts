@@ -247,7 +247,7 @@ int list(const char *name, const struct stat *status, int type)
             if (0 != update_mpd_db(mpdname))
                 return 0;
             //send new song info to socket
-            send_to_server(filename);
+            send_to_server(mpdname);
         } else {
             printf("%s: %s there is no artist or title tag: %s/%s/%s\n", 
                     __func__, name, artist, title, album);
