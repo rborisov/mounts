@@ -19,6 +19,7 @@
 #include <libgen.h>
 #include <assert.h>
 #include <ctype.h>
+#include <syslog.h>
 
 #include "config.h"
 #include "mpd-utils.h"
@@ -43,12 +44,12 @@ void send_to_server(const char *message)
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        printf("%s: ERROR opening socket\n", __func__);
+        syslog(LOG_ERR, "%s: ERROR opening socket\n", __func__);
         goto done;
     }
     server = gethostbyname(_HOST_);
     if (server == NULL) {
-        printf("%s: ERROR, no such host\n", __func__);
+        syslog(LOG_ERR, "%s: ERROR, no such host\n", __func__);
         goto done;
     }
     bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -63,7 +64,7 @@ void send_to_server(const char *message)
     }
     n = write(sockfd, message, strlen(message));
     if (n < 0)
-        printf("%s: ERROR writing to socket\n", __func__);
+        syslog(LOG_ERR, "%s: ERROR writing to socket\n", __func__);
 done:
     close(sockfd);
     return;
@@ -173,7 +174,7 @@ int get_mount_entry(char *ment)
 
     aFile = setmntent(_MOUNTS_, "r");
     if (aFile == NULL) {
-        printf("%s: setmntent", __func__);
+        syslog(LOG_INFO, "%s: setmntent", __func__);
         return -1;
     }
     while (NULL != (ent = getmntent(aFile))) {
@@ -238,9 +239,9 @@ int list(const char *name, const struct stat *status, int type)
                 }
             }
             if (0 == file_copy(filename, name))
-                printf("%s: new %s\n", __func__, filename);
+                syslog(LOG_INFO, "%s: new %s\n", __func__, filename);
             else {
-                printf("%s: file copy error! %s\n", __func__, filename);
+                syslog(LOG_ERR, "%s: file copy error! %s\n", __func__, filename);
                 return 0;
             }
             //add new song to mpd db
@@ -249,7 +250,7 @@ int list(const char *name, const struct stat *status, int type)
             //send new song info to socket
             send_to_server(mpdname);
         } else {
-            printf("%s: %s there is no artist or title tag: %s/%s/%s\n", 
+            syslog(LOG_INFO, "%s: %s there is no artist or title tag: %s/%s/%s\n", 
                     __func__, name, artist, title, album);
         }
     }
@@ -272,7 +273,7 @@ int main()
     processor = &print_selected_keywords;
 
     int cnt1, cnt = get_mount_entry(mentdir);
-    fprintf(stdout, "%d\n", cnt);
+    syslog(LOG_DEBUG, "%s: %d\n", __func__, cnt);
 
     pfd.fd = mfd;
     pfd.events = POLLERR | POLLPRI;
@@ -283,7 +284,7 @@ int main()
 //            fprintf(stdout, "Mount points changed. Count = %d\n", cnt1);
             if (cnt1 > cnt) {
                 //we have new mount point
-                printf("%d %d %s\n", cnt, cnt1, mentdir);
+                syslog(LOG_DEBUG, "%s: %d %d %s\n", __func__, cnt, cnt1, mentdir);
                 ftw(mentdir, list, 1);
             }
             cnt = cnt1;
@@ -291,7 +292,7 @@ int main()
         pfd.revents = 0;
     }
 
-    printf("%d\n", rv);
+    syslog(LOG_DEBUG, "%s: %d\n", __func__, rv);
 
     close(mfd);
     EXTRACTOR_plugin_remove_all (plugins);

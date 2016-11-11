@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <mpd/client.h>
+#include <syslog.h>
 #include "mpd-utils.h"
 #include "config.h"
 
@@ -8,12 +9,13 @@ struct mpd_connection * setup_connection(void)
 {
     struct mpd_connection *conn = mpd_connection_new(NULL, NULL, 0);
     if (conn == NULL) {
-        printf("%s: Out of memory\n", __func__);
+        syslog(LOG_ERR, "%s: Out of memory\n", __func__);
         return NULL;
     }
 
     if (mpd_connection_get_error(conn) != MPD_ERROR_SUCCESS) {
-        printf("%s: mpd connection error: %s\n", __func__, mpd_connection_get_error_message(conn));
+        syslog(LOG_ERR, "%s: mpd connection error: %s\n", __func__, 
+                mpd_connection_get_error_message(conn));
         return NULL;
     }
 
@@ -40,24 +42,24 @@ int isin_mpd_db(char *artist, char *title)
 
     if (conn) {
         if(mpd_search_db_songs(conn, false) == false) {
-            printf("%s: mpd_search_db_songs failed\n", __func__);
+            syslog(LOG_ERR, "%s: mpd_search_db_songs failed\n", __func__);
             goto search_done;
         } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
                     0, artist) == false) {
-            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
+            syslog(LOG_ERR, "%s: mpd_search_add_any_tag_constraint failed\n", __func__);
             goto search_done;
         } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
                     3, title) == false) {
-            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
+            syslog(LOG_ERR, "%s: mpd_search_add_any_tag_constraint failed\n", __func__);
             goto search_done;
         } else if(mpd_search_commit(conn) == false) {
-            printf("%s: mpd_search_commit failed\n", __func__);
+            syslog(LOG_ERR, "%s: mpd_search_commit failed\n", __func__);
             goto search_done;
         } else {
             while((song = mpd_recv_song(conn)) != NULL) {
                 mpd_song_free(song);
                 if (cnt++ > 300) {
-                    printf("%s: maximum count reached\n", __func__);
+                    syslog(LOG_INFO, "%s: maximum count reached\n", __func__);
                     break;
                 }
             }
@@ -80,23 +82,23 @@ int mpd_search_and_delete(char *artist, char * title)
             goto search_done;
         } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
                     0, artist) == false) {
-            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
+            syslog(LOG_ERR, "%s: mpd_search_add_any_tag_constraint failed\n", __func__);
             goto search_done;
         } else if(mpd_search_add_tag_constraint(conn, MPD_OPERATOR_DEFAULT,
                     3, title) == false) {
-            printf("%s: mpd_search_add_any_tag_constraint failed\n", __func__);
+            syslog(LOG_ERR, "%s: mpd_search_add_any_tag_constraint failed\n", __func__);
             goto search_done;
         } else if(mpd_search_commit(conn) == false) {
-            printf("%s: mpd_search_commit failed\n", __func__);
+            syslog(LOG_ERR, "%s: mpd_search_commit failed\n", __func__);
             goto search_done;
         } else {
             while((song = mpd_recv_song(conn)) != NULL) {
                 sprintf(uri, "%s/%s", _MUSIC_PATH_, mpd_song_get_uri(song));
-                printf("%s: try to remove %s", __func__, uri);
+                syslog(LOG_INFO, "%s: try to remove %s", __func__, uri);
                 if (remove(uri) != 0) {
-                    printf(" - failed\n");
+                    syslog(LOG_ERR, "%s: - failed\n", __func__);
                 } else {
-                    printf(" - done\n");
+                    syslog(LOG_INFO, "%s: - done\n", __func__);
                     cnt++;
                 }
                 mpd_song_free(song);

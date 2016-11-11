@@ -7,12 +7,12 @@ size_t memory_write(void *contents, size_t size, size_t nmemb, void *userp)
     size_t realsize = size * nmemb;
     struct memstruct *mem = (struct MemoryStruct *)userp;
 
-    syslog(LOG_DEBUG, "%i %i", size, nmemb);
+    syslog(LOG_DEBUG, "%s: %d %d", __func__, (int)size, (int)nmemb);
 
     mem->memory = realloc(mem->memory, realsize + 1);
     if(mem->memory == NULL) {
         /* out of memory! */
-        syslog(LOG_DEBUG, "not enough memory (realloc returned NULL)");
+        syslog(LOG_ERR, "%s: not enough memory (realloc returned NULL)", __func__);
         return 0;
     }
 

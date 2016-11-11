@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <syslog.h>
 #include "mpd-utils.h"
 #include "db_utils.h"
 #include "memory_utils.h"
@@ -31,7 +32,7 @@ int free_disk_space()
         //delete if exists
         cnt = mpd_search_and_delete(rat_artist.memory, rat_title.memory);
         if (cnt > 0) {
-            printf("deleted %d songs\n", cnt);
+            syslog(LOG_INFO, "%s: deleted %d songs\n", __func__, cnt);
             goto done;
         }
 
@@ -52,12 +53,12 @@ void fs_stat_loop(void)
             perror("stat");
         }
         fs_bavail = sv.f_bsize * sv.f_bavail;
-        printf("%s: available space: %ld bytes\n", __func__, fs_bavail);
+        syslog(LOG_INFO, "%s: available space: %ld bytes\n", __func__, fs_bavail);
         if (fs_bavail < _FS_BYTES_AVAIL_) {
-            printf("%s: lets clean fs!\n", __func__);
+            syslog(LOG_INFO, "%s: lets clean fs!\n", __func__);
             free_disk_space();
         }
-        sleep(5);
+        sleep(_FS_SLEEP_);
     }
 }
 
@@ -69,11 +70,11 @@ int fs_listener_init(void)
                 (void*)fs_stat_loop, NULL) == 0) {
         pthread_detach(fs_listener_thread);
     } else {
-        printf("%s: event_thread error\n", __func__);
+        syslog(LOG_ERR, "%s: event_thread error\n", __func__);
         return -1;
     }
     if (db_init() != 0) {
-        printf("%s: SQLITE_ERROR\n", __func__);
+        syslog(LOG_ERR, "%s: SQLITE_ERROR\n", __func__);
         return -1;
     }
     return 0;

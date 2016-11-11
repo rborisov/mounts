@@ -10,5 +10,6 @@
 #define _FS_BYTES_AVAIL_ 52428800
 //#define _FS_BYTES_AVAIL_ 137929368000
 #define _DB_PATH_ "/storage"
+#define _FS_SLEEP_ 15
 
 #endif
