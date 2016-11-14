@@ -14,4 +14,6 @@ void memory_init(void *userp);
 void memory_clean(void *userp);
 size_t memory_write(void *contents, size_t size, size_t nmemb, void *userp);
 
+void send_to_server(const char *type, const char *message);
+
 #endif //__MEMORY_UTILS_H__

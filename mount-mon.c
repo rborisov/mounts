@@ -2,9 +2,6 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <mntent.h>
@@ -35,40 +32,6 @@ static int in_process;
 char artist[_MAXSTRING_];
 char title[_MAXSTRING_];
 char album[_MAXSTRING_];
-
-void send_to_server(const char *message)
-{
-    int sockfd, n;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        syslog(LOG_ERR, "%s: ERROR opening socket\n", __func__);
-        goto done;
-    }
-    server = gethostbyname(_HOST_);
-    if (server == NULL) {
-        syslog(LOG_ERR, "%s: ERROR, no such host\n", __func__);
-        goto done;
-    }
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr,
-            (char *)&serv_addr.sin_addr.s_addr,
-            server->h_length);
-    serv_addr.sin_port = htons(_PORT_);
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-//        printf("%s: ERROR connecting\n", __func__);
-        goto done;
-    }
-    n = write(sockfd, message, strlen(message));
-    if (n < 0)
-        syslog(LOG_ERR, "%s: ERROR writing to socket\n", __func__);
-done:
-    close(sockfd);
-    return;
-}
 
 int file_copy(const char *to, const char *from)
 {
@@ -200,9 +163,6 @@ int list(const char *name, const struct stat *status, int type)
     char path[2 * _MAXSTRING_] = "";
     char mpdname[2 * _MAXSTRING_] = "";
     if(type == FTW_F && strcmp(_EXT_, get_filename_ext(name)) == 0) {
-//        printf("0%3o\t%s\n", status->st_mode&0777, name);
-        //printf("%s: found %s\n", __func__, basename((char*)name));
-       
         memset(artist, 0, sizeof(artist));
         memset(title, 0, sizeof(title));
         memset(album, 0, sizeof(album));
@@ -248,7 +208,7 @@ int list(const char *name, const struct stat *status, int type)
             if (0 != update_mpd_db(mpdname))
                 return 0;
             //send new song info to socket
-            send_to_server(mpdname);
+            send_to_server("[newfile]", mpdname);
         } else {
             syslog(LOG_INFO, "%s: %s there is no artist or title tag: %s/%s/%s\n", 
                     __func__, name, artist, title, album);
@@ -281,11 +241,13 @@ int main()
     while ((rv = poll(&pfd, 1, 5)) >= 0) {
         if (pfd.revents & POLLERR) {
             cnt1 = get_mount_entry(mentdir);
-//            fprintf(stdout, "Mount points changed. Count = %d\n", cnt1);
             if (cnt1 > cnt) {
                 //we have new mount point
                 syslog(LOG_DEBUG, "%s: %d %d %s\n", __func__, cnt, cnt1, mentdir);
+                send_to_server("[mntpoint]", mentdir);
                 ftw(mentdir, list, 1);
+            } else {
+                send_to_server("[mntpoint]", "closed");
             }
             cnt = cnt1;
         }
