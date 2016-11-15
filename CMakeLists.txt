@@ -10,12 +10,9 @@ find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(LibMPDClient REQUIRED)
 find_package(Sqlite3 REQUIRED)
-find_library(EXTRACTOR_LIBRARIES name extractor paths /usr/lib)
-
-message("${EXTRACTOR_LIBRARIES}")
 
 include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}
-    ${LIBMPDCLIENT_INCLUDE_DIR}
+    ${LIBMPDCLIENT_INCLUDE_DIR} ${PROJECT_SOURCE_DIR}/external/id3v2lib/include
     )
 
     link_directories(${LIBMPDCLIENT_LIBRARY_DIRS} 
@@ -41,6 +38,6 @@ add_executable(moumon ${SOURCES})
 target_link_libraries(moumon ${CMAKE_THREAD_LIBS_INIT}
     ${LIBMPDCLIENT_LIBRARIES}
     ${SQLITE3_LIBRARIES}
-    extractor)
+    -L${PROJECT_SOURCE_DIR}/external/id3v2lib -lid3v2)
 
 install(TARGETS moumon DESTINATION bin)

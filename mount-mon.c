@@ -7,7 +7,6 @@
 #include <mntent.h>
 #include <string.h>
 #include <ftw.h>
-#include <extractor.h>
 #include <libintl.h>
 #include <errno.h>
 #include <string.h>
@@ -17,17 +16,13 @@
 #include <assert.h>
 #include <ctype.h>
 #include <syslog.h>
+#include <id3v2lib.h>
+#include <iconv.h>
 
 #include "config.h"
 #include "mpd-utils.h"
 #include "space-mon.h"
-
-#define dgettext(Domainname, Msgid) ((const char *) (Msgid))
-#define _(a) dgettext("org.gnunet.libextractor", a)
-
-static struct EXTRACTOR_PluginList *plugins = NULL;
-static EXTRACTOR_MetaDataProcessor processor = NULL;
-static int in_process;
+#include "memory_utils.h"
 
 char artist[_MAXSTRING_];
 char title[_MAXSTRING_];
@@ -94,41 +89,6 @@ char *trimwhitespace(char *str)
     return str;
 }
 
-static int print_selected_keywords (void *cls,
-        const char *plugin_name,
-        enum EXTRACTOR_MetaType type,
-        enum EXTRACTOR_MetaFormat format,
-        const char *data_mime_type,
-        const char *data,
-        size_t data_len)
-{
-    char *keyword, *keyw;
-    const char *stype;
-    const char *mt;
-
-    mt = EXTRACTOR_metatype_to_string (type);
-    stype = (NULL == mt) ? _("unknown") : gettext(mt);
-    switch (format) {
-        case EXTRACTOR_METAFORMAT_UTF8:
-            keyw = strdup(data);
-            keyword = trimwhitespace(keyw);
-            if (NULL != keyword) {
-                if (strcmp(stype, "artist") == 0)
-                    strcpy(artist, keyword);
-                if (strcmp(stype, "title") == 0)
-                    strcpy(title, keyword);
-                if (strcmp(stype, "album") == 0)
-                    strcpy(album, keyword);
-            }
-            free (keyw);
-            break;
-        default:
-            break;
-    }
-
-    return 0;
-}
-
 int get_mount_entry(char *ment)
 {
     struct mntent *ent;
@@ -156,8 +116,36 @@ const char *get_filename_ext(const char *filename)
     return dot + 1;
 }
 
+void utf16tochar(uint16_t* string, int size, char *buf)
+{
+    char *_src = (char*)string;
+    size_t dstlen = _MAXSTRING_;
+    size_t srclen = size;
+    char *_dst = buf;
+
+    memset(buf, 0, _MAXSTRING_);
+    iconv_t conv = iconv_open("", "");
+    iconv(conv, &_src, &srclen, &_dst, &dstlen);
+    if (strlen(buf) == 0) {
+        iconv_close(conv);
+        conv = iconv_open("UTF-8", "UTF-16");
+        _src = string;
+        srclen = size;
+        _dst = buf;
+        dstlen = _MAXSTRING_;
+        iconv(conv, &_src, &srclen, &_dst, &dstlen);
+    }
+    buf[size] = '\0';
+    printf("%d %d %s\n", dstlen, strlen(buf), buf);
+    iconv_close(conv);
+}
+
+
 int list(const char *name, const struct stat *status, int type) 
 {
+    ID3v2_tag* tag = NULL;
+    ID3v2_frame* frame;
+    ID3v2_frame_text_content* content;
     struct stat sb;
     char filename[2 * _MAXSTRING_] = "";
     char path[2 * _MAXSTRING_] = "";
@@ -167,11 +155,31 @@ int list(const char *name, const struct stat *status, int type)
         memset(title, 0, sizeof(title));
         memset(album, 0, sizeof(album));
 
-        EXTRACTOR_extract (plugins,
-                name,
-                NULL, 0,
-                processor,
-                NULL);
+        tag = load_tag(name);
+        if (tag == NULL)
+            tag = new_tag();
+        frame = tag_get_artist(tag);
+        content = parse_text_frame_content(frame);
+        if (content) {
+            utf16tochar(content->data, content->size, artist);
+            free(frame);
+            free(content);
+        }
+        frame = tag_get_title(tag);
+        content = parse_text_frame_content(frame);
+        if (content) {
+            utf16tochar(content->data, content->size, title);
+            free(frame);
+            free(content);
+        }
+        frame = tag_get_album(tag);
+        content = parse_text_frame_content(frame);
+        if (content) {
+            utf16tochar(content->data, content->size, album);
+            free(frame);
+            free(content);
+        }
+        free(tag);
 
         if (artist[0] != 0 && title[0] != 0) {
             if (isin_mpd_db(artist, title)) {
@@ -228,10 +236,6 @@ int main()
 
     fs_listener_init();
 
-    plugins = EXTRACTOR_plugin_add_defaults (
-            in_process ? EXTRACTOR_OPTION_IN_PROCESS : EXTRACTOR_OPTION_DEFAULT_POLICY);
-    processor = &print_selected_keywords;
-
     int cnt1, cnt = get_mount_entry(mentdir);
     syslog(LOG_DEBUG, "%s: %d\n", __func__, cnt);
 
@@ -257,7 +261,6 @@ int main()
     syslog(LOG_DEBUG, "%s: %d\n", __func__, rv);
 
     close(mfd);
-    EXTRACTOR_plugin_remove_all (plugins);
 
     fs_listener_close();
 
