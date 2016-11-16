@@ -53,9 +53,9 @@ void fs_stat_loop(void)
             perror("stat");
         }
         fs_bavail = sv.f_bsize * sv.f_bavail;
-        syslog(LOG_INFO, "%s: available space: %ld bytes\n", __func__, fs_bavail);
+        syslog(LOG_INFO, "%s: available space: %lu bytes", __func__, fs_bavail);
         if (fs_bavail < _FS_BYTES_AVAIL_) {
-            syslog(LOG_INFO, "%s: lets clean fs!\n", __func__);
+            syslog(LOG_INFO, "%s: lets clean fs!", __func__);
             free_disk_space();
         }
         sleep(_FS_SLEEP_);

@@ -143,9 +143,10 @@ void utf16tochar(uint16_t* string, int size, char *buf)
 
 int list(const char *name, const struct stat *status, int type) 
 {
-    ID3v2_tag* tag = NULL;
-    ID3v2_frame* frame;
-    ID3v2_frame_text_content* content;
+    ID3v2_tag* tag2 = NULL;
+    ID3v2_frame* artframe = NULL, *titframe = NULL, *albframe = NULL;
+    ID3v2_frame_text_content* artcontent = NULL, 
+        *titcontent = NULL, *albcontent = NULL;
     struct stat sb;
     char filename[2 * _MAXSTRING_] = "";
     char path[2 * _MAXSTRING_] = "";
@@ -155,31 +156,38 @@ int list(const char *name, const struct stat *status, int type)
         memset(title, 0, sizeof(title));
         memset(album, 0, sizeof(album));
 
-        tag = load_tag(name);
-        if (tag == NULL)
-            tag = new_tag();
-        frame = tag_get_artist(tag);
-        content = parse_text_frame_content(frame);
-        if (content) {
-            utf16tochar(content->data, content->size, artist);
-            free(frame);
-            free(content);
+        //parse id3v2 tags
+        tag2 = load_tag(name);
+        if (tag2) {
+            artframe = tag_get_artist(tag2);
+            if (artframe) {
+                artcontent = parse_text_frame_content(artframe);
+                if (artcontent) {
+                    utf16tochar(artcontent->data, artcontent->size, artist);
+                    free(artcontent);
+                }
+                free(artframe);
+            }
+            titframe = tag_get_title(tag2);
+            if (titframe) {
+                titcontent = parse_text_frame_content(titframe);
+                if (titcontent) {
+                    utf16tochar(titcontent->data, titcontent->size, title);
+                    free(titcontent);
+                }
+                free(titframe);
+            }
+            albframe = tag_get_album(tag2);
+            if (albframe) {
+                albcontent = parse_text_frame_content(albframe);
+                if (albcontent) {
+                    utf16tochar(albcontent->data, albcontent->size, album);
+                    free(albcontent);
+                }
+                free(albframe);
+            }
+            free(tag2);
         }
-        frame = tag_get_title(tag);
-        content = parse_text_frame_content(frame);
-        if (content) {
-            utf16tochar(content->data, content->size, title);
-            free(frame);
-            free(content);
-        }
-        frame = tag_get_album(tag);
-        content = parse_text_frame_content(frame);
-        if (content) {
-            utf16tochar(content->data, content->size, album);
-            free(frame);
-            free(content);
-        }
-        free(tag);
 
         if (artist[0] != 0 && title[0] != 0) {
             if (isin_mpd_db(artist, title)) {

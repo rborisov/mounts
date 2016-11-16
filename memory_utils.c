@@ -64,7 +64,7 @@ void send_to_server(const char *type, const char *message)
             server->h_length);
     serv_addr.sin_port = htons(_PORT_);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        //printf("%s: ERROR connecting\n", __func__);
+        syslog(LOG_ERR, "%s: ERROR connecting\n", __func__);
         goto done;
     }
     n = write(sockfd, type, strlen(type));
