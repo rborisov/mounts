@@ -38,6 +38,6 @@ add_executable(moumon ${SOURCES})
 target_link_libraries(moumon ${CMAKE_THREAD_LIBS_INIT}
     ${LIBMPDCLIENT_LIBRARIES}
     ${SQLITE3_LIBRARIES}
-    -L${PROJECT_SOURCE_DIR}/external/id3v2lib -lid3v2)
+    -L${PROJECT_SOURCE_DIR}/external/id3v2lib/lib-${CMAKE_SYSTEM_PROCESSOR} -lid3v2)
 
 install(TARGETS moumon DESTINATION bin)

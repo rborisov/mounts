@@ -3,7 +3,7 @@ INCLUDE_DIRECTORIES(${id3v2lib_SOURCE_DIR}/include ${id3v2lib_SOURCE_DIR}/includ
 SET(id3v2_src frame.c header.c id3v2lib.c types.c utils.c)
 SET(id3v2_headers_directory ${id3v2lib_SOURCE_DIR}/include/id3v2lib)
 
-SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${id3v2lib_SOURCE_DIR})
+SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${id3v2lib_SOURCE_DIR}/lib-${CMAKE_SYSTEM_PROCESSOR})
 ADD_LIBRARY(id3v2 STATIC ${id3v2_src})
 
 INSTALL(TARGETS id3v2 DESTINATION lib)
