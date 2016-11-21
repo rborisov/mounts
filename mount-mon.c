@@ -18,6 +18,8 @@
 #include <syslog.h>
 #include <id3v2lib.h>
 #include <iconv.h>
+#include <signal.h>
+#include <execinfo.h>
 
 #include "config.h"
 #include "mpd-utils.h"
@@ -28,6 +30,24 @@ char artist[_MAXSTRING_];
 char title[_MAXSTRING_];
 char album[_MAXSTRING_];
 
+void sigsegv_handler(int sig) {
+    void *array[10];
+    size_t size;
+    char **funcs;
+    int i;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 10);
+
+    syslog(LOG_INFO, "Error: Received SIGSEGV signal %d:", sig);
+//    backtrace_symbols_fd(array, size, STDOUT_FILENO);
+    funcs = backtrace_symbols(array, size);
+    for (i = 0; i < size; i++) {
+        syslog(LOG_INFO, "%s", funcs[i]);
+    }
+    exit(1);
+}
+
 int file_copy(const char *to, const char *from)
 {
     int fd_to, fd_from;
@@ -36,11 +56,15 @@ int file_copy(const char *to, const char *from)
     int saved_errno;
 
     fd_from = open(from, O_RDONLY);
-    if (fd_from < 0)
+    if (fd_from < 0) {
+        syslog(LOG_ERR, "%s: fd_from < 0", __func__);
         return -1;
+    }
     fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
-    if (fd_to < 0)
+    if (fd_to < 0) {
+        syslog(LOG_ERR, "%s: fd_to < 0", __func__);
         goto out_error;
+    }
     while (nread = read(fd_from, buf, sizeof buf), nread > 0) {
         char *out_ptr = buf;
         ssize_t nwritten;
@@ -50,13 +74,16 @@ int file_copy(const char *to, const char *from)
                 nread -= nwritten;
                 out_ptr += nwritten;
             } else 
-                if (errno != EINTR)
+                if (errno != EINTR) {
+                    syslog(LOG_ERR, "%s: write", __func__);
                     goto out_error;
+                }
         } while (nread > 0);
     }
     if (nread == 0) {
         if (close(fd_to) < 0) {
             fd_to = -1;
+            syslog(LOG_ERR, "%s: read", __func__);
             goto out_error;
         }
         close(fd_from);
@@ -71,6 +98,7 @@ out_error:
         close(fd_to);
 
     errno = saved_errno;
+    syslog(LOG_ERR, "%s: errno %d", __func__, saved_errno);
     return -1;
 }
 
@@ -151,6 +179,7 @@ int list(const char *name, const struct stat *status, int type)
     char filename[2 * _MAXSTRING_] = "";
     char path[2 * _MAXSTRING_] = "";
     char mpdname[2 * _MAXSTRING_] = "";
+    char *art = artist, *tit = title, *alb = album;
     if(type == FTW_F && strcmp(_EXT_, get_filename_ext(name)) == 0) {
         memset(artist, 0, sizeof(artist));
         memset(title, 0, sizeof(title));
@@ -164,6 +193,7 @@ int list(const char *name, const struct stat *status, int type)
                 artcontent = parse_text_frame_content(artframe);
                 if (artcontent) {
                     utf16tochar(artcontent->data, artcontent->size, artist);
+                    art = trimwhitespace(artist);
                     free(artcontent);
                 }
                 free(artframe);
@@ -173,6 +203,7 @@ int list(const char *name, const struct stat *status, int type)
                 titcontent = parse_text_frame_content(titframe);
                 if (titcontent) {
                     utf16tochar(titcontent->data, titcontent->size, title);
+                    tit = trimwhitespace(title);
                     free(titcontent);
                 }
                 free(titframe);
@@ -182,6 +213,7 @@ int list(const char *name, const struct stat *status, int type)
                 albcontent = parse_text_frame_content(albframe);
                 if (albcontent) {
                     utf16tochar(albcontent->data, albcontent->size, album);
+                    alb = trimwhitespace(album);
                     free(albcontent);
                 }
                 free(albframe);
@@ -189,22 +221,22 @@ int list(const char *name, const struct stat *status, int type)
             free(tag2);
         }
 
-        if (artist[0] != 0 && title[0] != 0) {
-            if (isin_mpd_db(artist, title)) {
+        if (art[0] != 0 && tit[0] != 0) {
+            if (isin_mpd_db(art, tit)) {
                 //exists already; do nothing
                 //TODO: check bitrate and duration
                 return 0;
             }
-            sprintf(path, "%s/%s", _MUSIC_PATH_, artist);
+            sprintf(path, "%s/%s", _MUSIC_PATH_, art);
             mkdir(path, 0777);
-            if (album[0] != 0) {
-                sprintf(path, "%s/%s/%s", _MUSIC_PATH_, artist, album);
+            if (alb[0] != 0) {
+                sprintf(path, "%s/%s/%s", _MUSIC_PATH_, art, alb);
                 mkdir(path, 0777);
-                sprintf(mpdname, "%s/%s/%s.%s", artist, album, title, _EXT_);
+                sprintf(mpdname, "%s/%s/%s.%s", art, alb, tit, _EXT_);
             } else {
-                sprintf(mpdname, "%s/%s.%s", artist, title, _EXT_);
+                sprintf(mpdname, "%s/%s.%s", art, tit, _EXT_);
             }
-            sprintf(filename, "%s/%s.%s", path, title, _EXT_);
+            sprintf(filename, "%s/%s.%s", path, tit, _EXT_);
             if (stat(filename, &sb) == 0) {
                 /* file already exists
                  * replace it if size less than size of new one 
@@ -227,13 +259,12 @@ int list(const char *name, const struct stat *status, int type)
             send_to_server("[newfile]", mpdname);
         } else {
             syslog(LOG_INFO, "%s: %s there is no artist or title tag: %s/%s/%s\n", 
-                    __func__, name, artist, title, album);
+                    __func__, name, art, tit, alb);
         }
     }
 
     return 0;
 }
-
 
 int main()
 {
@@ -241,6 +272,8 @@ int main()
     struct pollfd pfd;
     int rv;
     char mentdir[128];
+
+    signal(SIGSEGV, sigsegv_handler);
 
     fs_listener_init();
 

@@ -20,7 +20,7 @@ include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}
 
 include(CheckCSourceCompiles)
 
-set(CMAKE_C_FLAGS "-std=gnu99 -Wall") 
+set(CMAKE_C_FLAGS "-std=gnu99 -Wall -g -rdynamic") 
 set(CMAKE_C_FLAGS_DEBUG "-ggdb -pedantic")
 
 get_target_property(MKDATA_EXE mkdata LOCATION)
