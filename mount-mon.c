@@ -25,6 +25,7 @@
 #include "mpd-utils.h"
 #include "space-mon.h"
 #include "memory_utils.h"
+#include "id3v1.h"
 
 char artist[_MAXSTRING_];
 char title[_MAXSTRING_];
@@ -221,6 +222,21 @@ int list(const char *name, const struct stat *status, int type)
             free(tag2);
         }
 
+        //parse id3v1 tags
+        if (art[0] == 0 || tit[0] == 0) {
+            struct id3v1_1 file_tag;
+            if (id3v1parse(name, &file_tag) == EXIT_SUCCESS) {
+                if (tit[0] == 0)
+                    strcpy(tit, trimwhitespace(file_tag.title));
+                if (art[0] == 0)
+                    strcpy(art, trimwhitespace(file_tag.artist));
+                if (alb[0] == 0)
+                    strcpy(alb, trimwhitespace(file_tag.album));
+                syslog(LOG_DEBUG, "%s: %s / %s / %s", __func__, art, alb, tit);
+            }
+        }
+
+        //ca-st-ro requires artist and title; album is optional
         if (art[0] != 0 && tit[0] != 0) {
             if (isin_mpd_db(art, tit)) {
                 //exists already; do nothing

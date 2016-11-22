@@ -32,6 +32,7 @@ set(SOURCES
     db_utils.c
     sql.c
     memory_utils.c
+    id3v1.c
 )
 
 add_executable(moumon ${SOURCES})
